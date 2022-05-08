@@ -3,14 +3,15 @@ import torch
 from pathlib import Path
 from mask import Mask
 from torch.utils.data import DataLoader, Dataset
+from tokenization import BertTokenizer
 
 class CscMlmDataset(Dataset):
-    def __init__(self, args, mask: Mask, file_path: Path, mode: str='train'):
+    def __init__(self, seq_length: int, tokenizer: BertTokenizer, mask: Mask, file_path: Path, mode: str='train'):
         self.sample_size = 0
         self.sample_index = list()
         self.file = file_path
-        self.tokenizer = args.tokenizer
-        self.seq_length = args.seq_length
+        self.tokenizer = tokenizer
+        self.seq_length = seq_length
         self.mask = mask
         self.mode = mode
         self._parse_dataset()
