@@ -7,6 +7,8 @@ import re
 import numpy as np
 import tensorflow as tf
 import warnings
+from model import BertForCSC
+from tokenization import BertTokenizer
 # warnings.filterwarnings('ignore')
 
 logger = logging.getLogger("csc" + __name__)
@@ -62,7 +64,8 @@ def load_tf_cbert(model: torch.nn.Module, model_weight_path: Path):
 
 if __name__ == '__main__':
     config = BertConfig.from_pretrained('bert-base-chinese')
-    model = BertForMaskedLM(config)
+    tokenizer = BertTokenizer('./cbert/vocab.txt')
+    model = BertForCSC(config, len(tokenizer.vocab), -100)
     model = load_tf_cbert(model, Path('../cbert/bert_model.ckpt'))
     print('test:')
     state_dict = model.state_dict()

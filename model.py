@@ -11,7 +11,7 @@ class BertForCSC(BertPreTrainedModel):
 
         self.bert = BertModel(config, add_pooling_layer=False)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+        self.classifier = nn.Linear(config.hidden_size, self.num_labels)
         self.post_init()
     
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None,
