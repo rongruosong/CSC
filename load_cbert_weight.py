@@ -41,14 +41,15 @@ def change_tf_key(model_weight_path: str):
         
         if 'embeddings' in name and 'LayerNorm' not in name:
             name += '.weight'
-        if name == 'loss.output_weight':
+        if name == 'output_weights':
             name = 'classifier.weight'
-        if name == 'loss.output_bias':
+        if name == 'output_bias':
             name = 'classifier.bias'
         
         for old, new in [['kernel', 'weight'], ['gamma', 'weight'], ['beta', 'bias']]:
             name = name.replace(old, new)
-
+        if name == 'classifier.weight':
+            print(array)
         tf_state_dict[name] = array
     return tf_state_dict
 
@@ -69,5 +70,5 @@ if __name__ == '__main__':
     model = load_tf_cbert(model, Path('../cbert/bert_model.ckpt'))
     print('test:')
     state_dict = model.state_dict()
-    print(state_dict['bert.embeddings.token_type_embeddings.weight'])
+    print(state_dict['classifier.weight'])
 
