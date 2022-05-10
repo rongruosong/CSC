@@ -39,6 +39,11 @@ def change_tf_key(model_weight_path: str):
         
         if 'embeddings' in name and 'LayerNorm' not in name:
             name += '.weight'
+        if name == 'loss.output_weight':
+            name = 'classifier.weight'
+        if name == 'loss.output_bias':
+            name = 'classifier.bias'
+        
         for old, new in [['kernel', 'weight'], ['gamma', 'weight'], ['beta', 'bias']]:
             name = name.replace(old, new)
 

@@ -1,9 +1,12 @@
+# coding=utf-8
 from tokenization import BertTokenizer
+from model import BertForCSC
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
 from pathlib import Path
 from addict import Dict
 from dataset import CscMlmDataset, collate_csc_mlm_fn_padding
 from torch.utils.data import DataLoader
+
 
 if __name__ == '__main__':
     tokenizer = BertTokenizer('./cbert/vocab.txt')

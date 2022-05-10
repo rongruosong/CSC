@@ -1,10 +1,13 @@
 # coding=utf-8
+"""
+
+"""
 from typing import Union, Tuple
 from pathlib import Path
 import torch
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
 from torch.utils.data import DataLoader
-from transformers import BertConfig, AdamW, get_linear_schedule_with_warmup
+from transformers import BertConfig, get_linear_schedule_with_warmup
 
 from log import Logger
 from tokenization import BertTokenizer
@@ -12,6 +15,7 @@ from dataset import CscMlmDataset, collate_csc_mlm_fn_padding
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
 from model import BertForCSC
 from load_cbert_weight import load_tf_cbert
+from torchmetrics import MeanMetric, Accuracy
 
 class CSCTransformer(LightningModule):
     def __init__(self, args, num_labels):
@@ -20,7 +24,7 @@ class CSCTransformer(LightningModule):
         
         # 构建模型
         config = BertConfig.from_pretrained(self.args.config_path)
-        self.model = BertForCSC(config, num_labels)
+        self.model = BertForCSC(config, num_labels, self.args.ignore_index)
 
         # 模型加载参数
         if self.args.from_tf:
@@ -31,6 +35,15 @@ class CSCTransformer(LightningModule):
             for n, p in list(self.model.named_parameters()):
                     if "gamma" not in n and "beta" not in n:
                         p.data.normal_(0, 0.02)
+        
+        self.cur_step = 0
+        self.report_loss = torch.tensor(0.0)
+        # self.report_loss = []
+        # self.report_loss = MeanMetric()
+        self.report_acc = Accuracy(ignore_index=self.args.ignore_index)
+
+        self.val_loss = MeanMetric()
+        self.val_acc = Accuracy(ignore_index=self.args.ignore_index)
     
     def forward(self, input_ids, attention_mask, labels=None):
         return self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
@@ -41,9 +54,61 @@ class CSCTransformer(LightningModule):
             input_ids=input_ids, 
             attention_mask=attention_mask, 
             labels=tgt_ids)
-        loss = outputs[0]
+        loss, logits = outputs[0:2]
+        preds = torch.argmax(logits, axis=1)
+        self.report_acc(preds, tgt_ids)
+        self.log('batch_loss', loss, prog_bar=True) # 只输出该batch的loss
+        self.log('batch_acc', self.report_acc, prog_bar=True) # 当前batch的accuracy
         return loss
     
+    def training_step_end(self, outs):
+        # 这里cur_step是实际optim step的accumulate_grad_batches倍
+        self.cur_step += 1
+        self.report_loss += outs.detach().cpu()
+        # self.report_loss.append(outs.detach())
+        # self.report_loss.update(outs)
+
+        # 这里考虑accumulate_grad_batches次training_step 算一次，
+        if (self.cur_step % (self.trainer.accumulate_grad_batches * self.args.report_steps)) == 0:
+            self.log('report_loss', self.report_loss / self.trainer.accumulate_grad_batches * self.args.report_steps)
+            self.report_loss = torch.tensor(0.0)
+            # self.log('report_loss', sum(self.report_loss) / len(self.report_loss))
+            # self.report_loss = []
+            # self.log('report_loss', self.report_loss.compute())
+            # self.report_loss.reset()
+            self.log('report_acc', self.report_acc.compute()) # 全部batches的accuracy
+            self.report_acc.reset()
+        """
+        # 也可以采用这种方式，report_steps 输出一次
+        if self.cur_step % self.args.report_steps == 0:
+            self.log('report_loss', self.report_loss / self.args.report_steps)
+            self.report_loss = torch.tensor(0.0)
+            # self.log('report_loss', self.report_loss.compute())
+            # self.report_loss.reset()
+            self.log('report_acc', self.report_acc.compute()) # 全部batches的accuracy
+            self.report_acc.reset()
+        """
+        return outs
+    def validation_step(self, batch, batch_idx):
+        input_ids, attention_mask, tgt_ids = batch
+        outputs = self(
+            input_ids=input_ids, 
+            attention_mask=attention_mask, 
+            labels=tgt_ids)
+        loss, logits = outputs[0:2]
+
+        self.val_loss(loss)
+        self.val_acc(logits, tgt_ids)
+        self.log('val_loss', loss)
+        return loss
+    
+    def validation_epoch_end(self, outputs):
+        self.log('val_epoch_loss', self.val_loss.compute())
+        self.val_loss.reset()
+
+        self.log('val_epoch_acc', self.val_acc.compute())
+        self.val_acc.reset()
+
     def configure_optimizers(self) -> Tuple:
         model = self.model
         no_decay = ["bias", "LayerNorm.weight"]
@@ -65,7 +130,8 @@ class CSCTransformer(LightningModule):
             num_warmup_steps=self.num_warmup_steps,
             num_training_steps=self.total_steps,
         )
-        return optimizer, scheduler
+        scheduler = {"scheduler": scheduler, "interval": "step", "frequency": 1}
+        return [optimizer], [scheduler]
     
     @property
     def num_training_steps(self) -> int:
