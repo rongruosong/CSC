@@ -84,7 +84,7 @@ def parse_args() -> argparse.Namespace:
                         help="Specific steps to print prompt.")
 
     # metric options
-    parser.add_argument('ignore_index', type=int, default=-100,
+    parser.add_argument('--ignore_index', type=int, default=-100,
                         help='metric ignore index')
     
     # evn options

@@ -197,12 +197,34 @@ class CSCTaskTransformer(CSCTransformer):
         if (self.cur_step % (self.trainer.accumulate_grad_batches * self.args.report_steps)) == 0:
             self.log('report_loss', self.report_loss.compute(), rank_zero_only=True)
             self.report_loss.reset()
-            
+
             metric = self.report_acc.compute()
             report_metric = {'report_' + k : v for k, v in metric.items()}
             self.log_dict(report_metric, rank_zero_only=True) # 全部batches的accuracy
             self.report_acc.reset()
         return outs
+
+    def validation_step(self, batch, batch_idx):
+        input_ids, attention_mask, tgt_ids = batch
+        outputs = self(
+            input_ids=input_ids, 
+            attention_mask=attention_mask, 
+            labels=tgt_ids)
+        loss, logits = outputs[0:2]
+
+        self.val_loss(loss)
+        self.val_metric(input_ids, logits, tgt_ids)
+        self.log('val_loss', loss)
+        return loss
+    
+    def validation_epoch_end(self, outputs):
+        self.log('val_epoch_loss', self.val_loss.compute())
+        self.val_loss.reset()
+        
+        metric = self.val_acc.compute()
+        val_metric = {'val_epoch_' + k : v for k, v in metric.items()}
+        self.log_dict(val_metric)
+        self.val_acc.reset()
 
 class CSCPretrainTransformer(LightningModule):
     def __init__(self, args, num_labels):
