@@ -2,7 +2,7 @@
 import argparse
 from gc import callbacks
 
-from pl_model import CSCDataModule, CSCTransformer
+from pl_model import CSCDataModule, CSCPretrainTransformer
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
@@ -102,7 +102,7 @@ def train_model():
     csc_dm = CSCDataModule(args)
 
     # 初始化模型
-    model = CSCTransformer(args=args, num_labels=csc_dm.num_labels)
+    model = CSCPretrainTransformer(args=args, num_labels=csc_dm.num_labels)
 
     # 构建Trainer
     modelCheckpoint = ModelCheckpoint(

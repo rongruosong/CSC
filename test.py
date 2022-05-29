@@ -1,10 +1,11 @@
 # coding=utf-8
+from functools import partial
 from tokenization import BertTokenizer
 from model import BertForCSC
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
 from pathlib import Path
 from addict import Dict
-from dataset import CscMlmDataset, collate_csc_mlm_fn_padding
+from dataset import CscMlmDataset, CscTaskDataset, collate_csc_fn_padding
 from torch.utils.data import DataLoader
 
 
@@ -23,13 +24,15 @@ if __name__ == '__main__':
 
     mask = Mask(pinyin, jinyin, stroke)
 
-    dataset = CscMlmDataset(conf, mask, Path('./data/test_sample.txt'))
+    # dataset = CscMlmDataset(36, tokenizer, mask, Path('./data/test_sample.txt'))
     # src = dataset['src'].tolist()
     # tgt = dataset['tgt'].tolist()
 
     # print([(i, c) for i, c in enumerate(tokenizer.convert_ids_to_tokens(src))])
     # print([(i, c) for i, c in enumerate(tokenizer.convert_ids_to_tokens(tgt))])
-    loader = DataLoader(dataset, batch_size=4, num_workers=1, persistent_workers=True, collate_fn=collate_csc_mlm_fn_padding)
+    dataset = CscTaskDataset(seq_length=46, tokenizer=tokenizer, file_path=Path('./data/sighan_2015/train.tsv'))
+    # collate_csc_task_fn_padding = partial(collate_csc_task_fn_padding, mode='train')
+    loader = DataLoader(dataset, batch_size=2, num_workers=1, persistent_workers=True, collate_fn=collate_csc_fn_padding)
     for batch in loader:
         print(batch)
         break
