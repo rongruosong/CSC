@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader, Dataset
 from tokenization import BertTokenizer
 
 class CscDatset(Dataset, metaclass=ABCMeta):
-    def __init__(self, file_path: Path) -> None:
-        self.file = file_path
+    def __init__(self, file_path: str) -> None:
+        self.file = Path(file_path)
         self.sample_size = 0
         self.sample_index = list()
         self._parse_dataset()

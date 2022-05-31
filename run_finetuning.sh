@@ -17,6 +17,7 @@ test_batch_size=32
 
 seq_length=128
 
+accelerator="GPU"
 num_devices=1
 num_nodes=1
 strategy="ddp"
@@ -46,5 +47,5 @@ python3 run_finetuning.py \
     --strategy $strategy \
     --num_epochs $num_epochs \
     --val_check_interval $val_check_interval \
-    --ignore_index $ignore_index
+    --ignore_index $ignore_index \
     --seed $seed

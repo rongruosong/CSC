@@ -28,6 +28,7 @@ def train_model():
         mode='max'
     )
     trainer = Trainer(
+        accelerator=args.accelerator,
         devices=args.num_devices,
         num_nodes=args.num_nodes,
         strategy=args.strategy,

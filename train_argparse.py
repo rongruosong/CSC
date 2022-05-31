@@ -57,6 +57,8 @@ def parse_args() -> argparse.Namespace:
                         default="linear", help="Scheduler type.")
 
     # trainer options
+    parser.add_argument('--accelerator', type=str, choices=["cpu", "gpu", "tpu", "ipu", "auto"], default='auto',
+                        help='different accelerator types')
     parser.add_argument('--num_devices', type=int, default=1,
                         help='the number of devices of one node for training')
     parser.add_argument('--num_nodes', type=int, default=1,

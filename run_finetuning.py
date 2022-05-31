@@ -28,6 +28,7 @@ def train_model():
         mode='min'
     )
     trainer = Trainer(
+        accelerator=args.accelerator,
         devices=args.num_devices,
         num_nodes=args.num_nodes,
         strategy=args.strategy,
@@ -41,3 +42,6 @@ def train_model():
         deterministic=False
     )
     trainer.fit(model, csc_dm)
+
+if __name__ == '__main__':
+    train_model()

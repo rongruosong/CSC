@@ -94,7 +94,7 @@ class CSCScore(Metric):
         target: [N,...]
         '''
         if self.ignore_index is not None and self.ignore_index < 0:
-            mode, _ = _check_shape_and_type_consistency(preds, target)
+            mode, _ = _check_shape_and_type_consistency(preds.transpose(1, -1), target)
             inputs, preds, target = _drop_negative_ignored_indices(inputs, preds, target, self.ignore_index, mode)
         
         if preds.is_floating_point():

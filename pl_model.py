@@ -45,7 +45,7 @@ class CSCTransformer(LightningModule, metaclass=ABCMeta):
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": self.hparams.weight_decay,
+                "weight_decay": self.args.weight_decay,
             },
             {
                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
@@ -88,8 +88,7 @@ class CSCTransformer(LightningModule, metaclass=ABCMeta):
         """
         返回训练的最大step, warmup的step
         """
-        if num_training_steps < 0:
-            num_training_steps = self.num_training_steps
+        num_training_steps = self.num_training_steps
         if isinstance(num_warmup_steps, float):
             # Convert float values to percentage of training steps to use as warmup
             num_warmup_steps *= num_training_steps
@@ -143,6 +142,7 @@ class CSCPretrainTransformer(CSCTransformer):
             attention_mask=attention_mask, 
             labels=tgt_ids)
         loss, logits = outputs[0:2]
+        preds = torch.argmax(logits, axis=-1)
 
         self.val_loss(loss)
         self.val_acc(logits, tgt_ids)
@@ -198,10 +198,10 @@ class CSCTaskTransformer(CSCTransformer):
             self.log('report_loss', self.report_loss.compute(), rank_zero_only=True)
             self.report_loss.reset()
 
-            metric = self.report_acc.compute()
+            metric = self.report_metric.compute()
             report_metric = {'report_' + k : v for k, v in metric.items()}
             self.log_dict(report_metric, rank_zero_only=True) # 全部batches的accuracy
-            self.report_acc.reset()
+            self.report_metric.reset()
         return outs
 
     def validation_step(self, batch, batch_idx):
@@ -221,10 +221,10 @@ class CSCTaskTransformer(CSCTransformer):
         self.log('val_loss', self.val_loss.compute())
         self.val_loss.reset()
         
-        metric = self.val_acc.compute()
+        metric = self.val_metric.compute()
         val_metric = {'val_' + k : v for k, v in metric.items()}
         self.log_dict(val_metric)
-        self.val_acc.reset()
+        self.val_metric.reset()
 
 class CSCPretrainTransformer(LightningModule):
     def __init__(self, args, num_labels):
@@ -324,7 +324,7 @@ class CSCPretrainTransformer(LightningModule):
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": self.hparams.weight_decay,
+                "weight_decay": self.args.weight_decay,
             },
             {
                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
@@ -367,8 +367,7 @@ class CSCPretrainTransformer(LightningModule):
         """
         返回训练的最大step, warmup的step
         """
-        if num_training_steps < 0:
-            num_training_steps = self.num_training_steps
+        num_training_steps = self.num_training_steps
         if isinstance(num_warmup_steps, float):
             # Convert float values to percentage of training steps to use as warmup
             num_warmup_steps *= num_training_steps
@@ -378,43 +377,43 @@ class CSCDataModule(LightningDataModule):
     def __init__(self, args):
         super().__init__()
 
-        self.hparams = args
+        self.args = args
         # 加载tokenizer
-        tokenizer = BertTokenizer(self.hparams.vocab_path)
+        tokenizer = BertTokenizer(self.args.vocab_path)
         self.tokenizer = tokenizer
 
         # 设置模型分类标签的数量
         self.num_labels = len(self.tokenizer.vocab)
 
         # 加载混淆集
-        same_py_file = Path(self.hparams.confusions) / 'same_pinyin.txt'
-        simi_py_file =Path(self.hparams.confusions) / 'simi_pinyin.txt'
-        stroke_file = Path(self.hparams.confusions) / 'same_stroke.txt'
+        same_py_file = Path(self.args.confusions) / 'same_pinyin.txt'
+        simi_py_file =Path(self.args.confusions) / 'simi_pinyin.txt'
+        stroke_file = Path(self.args.confusions) / 'same_stroke.txt'
         pinyin = PinyinConfusionSet(tokenizer, same_py_file)
         jinyin = PinyinConfusionSet(tokenizer, simi_py_file)
         stroke = StrokeConfusionSet(tokenizer, stroke_file)
 
         # 构建mask策略对象
-        self.mask = Mask(pinyin, jinyin, stroke, self.hparams.ignore_index)
+        self.mask = Mask(pinyin, jinyin, stroke, self.args.ignore_index)
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            self.train_data = CscMlmDataset(self.hparams.seq_length, self.tokenizer, self.mask, self.hparams.train_data_path)
-            self.val_data = CscMlmDataset(self.hparams.seq_length, self.tokenizer, self.mask, self.hparams.test_data_path, mode='test')
+            self.train_data = CscMlmDataset(self.args.seq_length, self.tokenizer, self.mask, self.args.train_data_path)
+            self.val_data = CscMlmDataset(self.args.seq_length, self.tokenizer, self.mask, self.args.test_data_path, mode='test')
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.test_data = CscMlmDataset(self.hparams.seq_length, self.tokenizer, self.mask, self.hparams.test_data_path, mode='test')
+            self.test_data = CscMlmDataset(self.args.seq_length, self.tokenizer, self.mask, self.args.test_data_path, mode='test')
         
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.hparams.train_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.train_data, batch_size=self.args.train_batch_size, collate_fn=collate_csc_fn_padding)
     
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.val_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
     
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.test_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
 
 class CSCTaskDataModule(LightningDataModule):
     """
@@ -423,9 +422,9 @@ class CSCTaskDataModule(LightningDataModule):
     def __init__(self, args):
         super().__init__()
 
-        self.hparams = args
+        self.args = args
         # 加载tokenizer
-        tokenizer = BertTokenizer(self.hparams.vocab_path)
+        tokenizer = BertTokenizer(self.args.vocab_path)
         self.tokenizer = tokenizer
 
         # 设置模型分类标签的数量
@@ -434,22 +433,22 @@ class CSCTaskDataModule(LightningDataModule):
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit" or stage is None:
-            self.train_data = CscTaskDataset(self.hparams.seq_length, 
-                self.tokenizer, self.hparams.train_data_path, self.hparams.ignore_index)
-            self.val_data = CscTaskDataset(self.hparams.seq_length, 
-                self.tokenizer, self.hparams.test_data_path, self.hparams.ignore_index, mode='val')
+            self.train_data = CscTaskDataset(self.args.seq_length, 
+                self.tokenizer, self.args.train_data_path, self.args.ignore_index)
+            self.val_data = CscTaskDataset(self.args.seq_length, 
+                self.tokenizer, self.args.test_data_path, self.args.ignore_index, mode='val')
 
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
-            self.test_data = CscTaskDataset(self.hparams.seq_length, 
-                self.tokenizer, self.hparams.test_data_path, self.hparams.ignore_index, mode='test')
+            self.test_data = CscTaskDataset(self.args.seq_length, 
+                self.tokenizer, self.args.test_data_path, self.args.ignore_index, mode='test')
         
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.hparams.train_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.train_data, batch_size=self.args.train_batch_size, collate_fn=collate_csc_fn_padding)
     
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.val_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
     
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.test_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from transformers import BertForMaskedLM, BertConfig
 import re
 import numpy as np
-import tensorflow as tf
+
 import warnings
 from model import BertForCSC
 from tokenization import BertTokenizer
@@ -14,6 +14,7 @@ from tokenization import BertTokenizer
 logger = logging.getLogger("csc" + __name__)
 
 def change_tf_key(model_weight_path: str):
+    import tensorflow as tf
     print("Converting TensorFlow checkpoint from {}".format(model_weight_path))
     # Load weights from TF model
     tf_state_dict = {}
@@ -54,6 +55,7 @@ def change_tf_key(model_weight_path: str):
     return tf_state_dict
 
 def load_tf_cbert(model: torch.nn.Module, model_weight_path: Path):
+    import tensorflow as tf
     state_dict = model.state_dict()
     model_weight_path = str(model_weight_path)
     tf_state_dict = change_tf_key(model_weight_path)
