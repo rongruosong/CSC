@@ -23,9 +23,9 @@ def train_model():
         save_weights_only=True,
         monitor='val_loss',
         every_n_train_steps=args.val_check_interval,
-        filename='{epoch}-{step}-{val_loss:.2f}-{val_acc:.2f}',
+        filename='{epoch}-{step}-{val_loss:.2f}-{val_det_f1:.4f}-{val_cor_f1:.4f}',
         save_top_k=20,
-        mode='max'
+        mode='min'
     )
     trainer = Trainer(
         devices=args.num_devices,
