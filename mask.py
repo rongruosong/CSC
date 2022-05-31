@@ -1,9 +1,10 @@
 # coding=utf-8
+"""
+copy from https://github.com/liushulinle/PLOME/blob/main/pre_train_src/mask.py
+"""
 from typing import List, Tuple
 import random
 import copy
-import time
-import numpy as np
 from pathlib import Path
 from tokenization import BertTokenizer
 
@@ -83,10 +84,11 @@ class StrokeConfusionSet(ConfusionSet):
         return confusion_datas
 
 class Mask(object):
-    def __init__(self, same_py_confusion, simi_py_confusion, sk_confusion):
+    def __init__(self, same_py_confusion, simi_py_confusion, sk_confusion, ignore_index=-100):
         self.same_py_confusion = same_py_confusion
         self.simi_py_confusion = simi_py_confusion
         self.sk_confusion = sk_confusion
+        self.ignore_index = ignore_index
         self.config = {'same_py': 0.3, 'simi_py': 0.3, 'stroke': 0.15, 'random': 0.1, 'keep': 0.15, 'global_rate': 0.15}
         self.same_py_thr = self.config['same_py'] 
         self.simi_py_thr = self.config['same_py'] + self.config['simi_py']
@@ -121,7 +123,7 @@ class Mask(object):
     def mask_process(self, token_ids: List[int]) -> Tuple[List[int], List[int]]:
         valid_ids = [idx for (idx, v) in enumerate(token_ids) if v not in self.invalid_ids]
         src_tokens = copy.deepcopy(token_ids)
-        tgt_tokens = [-100] * len(token_ids)
+        tgt_tokens = [self.ignore_index] * len(token_ids)
         n_masked = int(len(valid_ids) * self.config['global_rate'])
         if n_masked < 1:
             n_masked = 1

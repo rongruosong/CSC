@@ -1,7 +1,7 @@
 # coding=utf-8
 import argparse
 
-from pl_model import CSCDataModule, CSCPretrainTransformer
+from pl_model import CSCTaskDataModule, CSCTaskTransformer
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from train_argparse import parse_args
@@ -12,10 +12,10 @@ def train_model():
     seed_everything(args.seed, workers=True)
 
     # 加载数据集
-    csc_dm = CSCDataModule(args)
+    csc_dm = CSCTaskDataModule(args)
 
     # 初始化模型
-    model = CSCPretrainTransformer(args=args, num_labels=csc_dm.num_labels)
+    model = CSCTaskTransformer(args=args, num_labels=csc_dm.num_labels)
 
     # 构建Trainer
     modelCheckpoint = ModelCheckpoint(
@@ -41,4 +41,3 @@ def train_model():
         deterministic=False
     )
     trainer.fit(model, csc_dm)
-

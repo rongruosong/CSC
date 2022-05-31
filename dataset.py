@@ -66,13 +66,20 @@ class CscMlmDataset(CscDatset):
         return dict(src=src_tokens, tgt=tgt_tokens)
 
 class CscTaskDataset(CscDatset):
-    def __init__(self, seq_length:int, tokenizer: BertTokenizer, file_path: Path, mode: str='train') -> None:
+    def __init__(self, 
+        seq_length:int, 
+        tokenizer: BertTokenizer, 
+        file_path: Path, 
+        ignore_index: int=-100,
+        mode: str='train'
+    ) -> None:
         super().__init__(file_path=file_path)
         self.tokenizer = tokenizer
         self.seq_length = seq_length
+        self.ignore_index = ignore_index
         self.mode = mode
     
-    def _create_sample(self, line):
+    def _create_sample(self, line: str) -> Dict[str, Tensor]:
         lines = line.strip().split('\t')
         src_tokens = self.tokenizer.tokenize(lines[0])
         if self.mode != 'infer':
@@ -91,11 +98,13 @@ class CscTaskDataset(CscDatset):
                 tgt_tokens = tgt_tokens[:self.seq_length - 1]
             tgt_tokens.append(self.tokenizer.sep_token)
             tgt_tokens = torch.LongTensor(self.tokenizer.convert_tokens_to_ids(tgt_tokens))
+            tgt_tokens[0] = self.ignore_index
+            tgt_tokens[-1] = self.ignore_index
             return dict(src=src_tokens, tgt=tgt_tokens)
             
         return dict(src=src_tokens)
 
-def collate_csc_fn_padding(batch, mode='train'):
+def collate_csc_fn_padding(batch: Dict[str, Tensor], ignore_index: int=-100, mode: str='train'):
     """
     用于pretrain与task的数据处理
     """
@@ -122,7 +131,7 @@ def collate_csc_fn_padding(batch, mode='train'):
 
         if mode != 'infer':
             tgt_token = tgt_tokens[i]
-            tgt_pad = torch.LongTensor([-100] * pad_len)
+            tgt_pad = torch.LongTensor([ignore_index] * pad_len)
             tgt_ids.append(torch.cat((tgt_token, tgt_pad)))
     
     input_ids = torch.stack(tokens_id, dim=0)

@@ -7,13 +7,13 @@ from pathlib import Path
 from abc import ABCMeta, abstractmethod
 import torch
 from torch import Tensor
-from pytorch_lightning import LightningDataModule, LightningModule, Trainer, seed_everything
+from pytorch_lightning import LightningDataModule, LightningModule
 from torch.utils.data import DataLoader
 from transformers import BertConfig, get_linear_schedule_with_warmup
 
 from log import Logger
 from tokenization import BertTokenizer
-from dataset import CscMlmDataset, collate_csc_fn_padding
+from dataset import CscMlmDataset, CscTaskDataset,collate_csc_fn_padding
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
 from model import BertForCSC
 from load_cbert_weight import load_tf_cbert
@@ -117,7 +117,7 @@ class CSCPretrainTransformer(CSCTransformer):
             attention_mask=attention_mask, 
             labels=tgt_ids)
         loss, logits = outputs[0:2]
-        preds = torch.argmax(logits, axis=1)
+        preds = torch.argmax(logits, axis=-1)
         self.report_acc(preds, tgt_ids)
         self.log('batch_loss', loss, prog_bar=True, rank_zero_only=True) # 只输出该batch的loss
         self.log('batch_acc', self.report_acc, prog_bar=True, rank_zero_only=True) # 当前batch的accuracy
@@ -146,14 +146,14 @@ class CSCPretrainTransformer(CSCTransformer):
 
         self.val_loss(loss)
         self.val_acc(logits, tgt_ids)
-        self.log('val_loss', loss)
+        self.log('val_batch_loss', loss)
         return loss
     
     def validation_epoch_end(self, outputs):
-        self.log('val_epoch_loss', self.val_loss.compute())
+        self.log('val_loss', self.val_loss.compute())
         self.val_loss.reset()
 
-        self.log('val_epoch_acc', self.val_acc.compute())
+        self.log('val_acc', self.val_acc.compute())
         self.val_acc.reset()
 
 class CSCTaskTransformer(CSCTransformer):
@@ -178,7 +178,7 @@ class CSCTaskTransformer(CSCTransformer):
             attention_mask=attention_mask, 
             labels=tgt_ids)
         loss, logits = outputs[0:2]
-        preds = torch.argmax(logits, axis=1)
+        preds = torch.argmax(logits, axis=-1)
         metric = self.report_metric(input_ids, logits, tgt_ids)
         batch_metric = {}
         for k, v in metric.items():
@@ -214,15 +214,15 @@ class CSCTaskTransformer(CSCTransformer):
 
         self.val_loss(loss)
         self.val_metric(input_ids, logits, tgt_ids)
-        self.log('val_loss', loss)
+        self.log('val_batch_loss', loss)
         return loss
     
     def validation_epoch_end(self, outputs):
-        self.log('val_epoch_loss', self.val_loss.compute())
+        self.log('val_loss', self.val_loss.compute())
         self.val_loss.reset()
         
         metric = self.val_acc.compute()
-        val_metric = {'val_epoch_' + k : v for k, v in metric.items()}
+        val_metric = {'val_' + k : v for k, v in metric.items()}
         self.log_dict(val_metric)
         self.val_acc.reset()
 
@@ -308,14 +308,14 @@ class CSCPretrainTransformer(LightningModule):
 
         self.val_loss(loss)
         self.val_acc(logits, tgt_ids)
-        self.log('val_loss', loss)
+        self.log('val_batch_loss', loss)
         return loss
     
     def validation_epoch_end(self, outputs):
-        self.log('val_epoch_loss', self.val_loss.compute())
+        self.log('val_loss', self.val_loss.compute())
         self.val_loss.reset()
 
-        self.log('val_epoch_acc', self.val_acc.compute())
+        self.log('val_acc', self.val_acc.compute())
         self.val_acc.reset()
 
     def configure_optimizers(self) -> Tuple:
@@ -395,7 +395,7 @@ class CSCDataModule(LightningDataModule):
         stroke = StrokeConfusionSet(tokenizer, stroke_file)
 
         # 构建mask策略对象
-        self.mask = Mask(pinyin, jinyin, stroke)
+        self.mask = Mask(pinyin, jinyin, stroke, self.hparams.ignore_index)
 
     def setup(self, stage=None):
         # Assign train/val datasets for use in dataloaders
@@ -406,6 +406,43 @@ class CSCDataModule(LightningDataModule):
         # Assign test dataset for use in dataloader(s)
         if stage == "test" or stage is None:
             self.test_data = CscMlmDataset(self.hparams.seq_length, self.tokenizer, self.mask, self.hparams.test_data_path, mode='test')
+        
+    def train_dataloader(self):
+        return DataLoader(self.train_data, batch_size=self.hparams.train_batch_size, collate_fn=collate_csc_fn_padding)
+    
+    def val_dataloader(self):
+        return DataLoader(self.val_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+    
+    def test_dataloader(self):
+        return DataLoader(self.test_data, batch_size=self.hparams.test_batch_size, collate_fn=collate_csc_fn_padding)
+
+class CSCTaskDataModule(LightningDataModule):
+    """
+    构建任务数据集
+    """
+    def __init__(self, args):
+        super().__init__()
+
+        self.hparams = args
+        # 加载tokenizer
+        tokenizer = BertTokenizer(self.hparams.vocab_path)
+        self.tokenizer = tokenizer
+
+        # 设置模型分类标签的数量
+        self.num_labels = len(self.tokenizer.vocab)
+
+    def setup(self, stage=None):
+        # Assign train/val datasets for use in dataloaders
+        if stage == "fit" or stage is None:
+            self.train_data = CscTaskDataset(self.hparams.seq_length, 
+                self.tokenizer, self.hparams.train_data_path, self.hparams.ignore_index)
+            self.val_data = CscTaskDataset(self.hparams.seq_length, 
+                self.tokenizer, self.hparams.test_data_path, self.hparams.ignore_index, mode='val')
+
+        # Assign test dataset for use in dataloader(s)
+        if stage == "test" or stage is None:
+            self.test_data = CscTaskDataset(self.hparams.seq_length, 
+                self.tokenizer, self.hparams.test_data_path, self.hparams.ignore_index, mode='test')
         
     def train_dataloader(self):
         return DataLoader(self.train_data, batch_size=self.hparams.train_batch_size, collate_fn=collate_csc_fn_padding)

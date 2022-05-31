@@ -75,7 +75,7 @@ class CSCScore(Metric):
 
         return rec, prec, f1
 
-    def compute(self) -> Dict[str, Any]:
+    def compute(self) -> Dict[str, Tensor]:
         detection_rec, detection_prec, detection_f1 = self._calculate(self.total_gold, self.total_pred, self.check_right_pred)
         correction_rec, correction_pre, correction_f1 = self._calculate(self.total_gold, self.total_pred, self.right_pred)
         return {
@@ -87,7 +87,7 @@ class CSCScore(Metric):
             'cor_f1': correction_f1
         }
 
-    def update(self, inputs: Tensor, preds: Tensor, target: Tensor):
+    def update(self, inputs: Tensor, preds: Tensor, target: Tensor) -> None:
         '''
         inputs: [N,...]
         preds: [N,...,C]
@@ -100,8 +100,8 @@ class CSCScore(Metric):
         if preds.is_floating_point():
             preds = preds.argmax(dim=-1)
         
-        self.total_gold += sum(inputs[1:-1] != target[1:-1])
-        self.total_pred += sum(inputs[1:-1] != preds[1:-1])
-        check_right_pred = (inputs[1:-1] != target[1:-1]) & (inputs[1:-1] != preds[1:-1])
+        self.total_gold += sum(inputs != target)
+        self.total_pred += sum(inputs != preds)
+        check_right_pred = (inputs != target) & (inputs != preds)
         self.check_right_pred += sum(check_right_pred)
-        self.right_pred += sum(check_right_pred & (target[1:-1] == preds[1:-1]))
+        self.right_pred += sum(check_right_pred & (target == preds))
