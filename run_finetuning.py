@@ -1,9 +1,8 @@
 # coding=utf-8
-import argparse
-
-from pl_model import CSCTaskDataModule, CSCTaskTransformer
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+
+from pl_model import CSCTaskDataModule, CSCTaskTransformer
 from train_argparse import parse_args
 
 

@@ -77,7 +77,8 @@ class CSCScore(Metric):
 
     def compute(self) -> Dict[str, Tensor]:
         detection_rec, detection_prec, detection_f1 = self._calculate(self.total_gold, self.total_pred, self.check_right_pred)
-        correction_rec, correction_pre, correction_f1 = self._calculate(self.total_gold, self.total_pred, self.right_pred)
+        # 这里计算是在检测的基础上
+        correction_rec, correction_pre, correction_f1 = self._calculate(self.total_gold, self.check_right_pred, self.right_pred)
         return {
             'det_prec': detection_prec, 
             'det_rec': detection_rec, 
@@ -100,8 +101,8 @@ class CSCScore(Metric):
         if preds.is_floating_point():
             preds = preds.argmax(dim=-1)
         
-        self.total_gold += sum(inputs != target)
-        self.total_pred += sum(inputs != preds)
+        self.total_gold += torch.sum(inputs != target)
+        self.total_pred += torch.sum(inputs != preds)
         check_right_pred = (inputs != target) & (inputs != preds)
-        self.check_right_pred += sum(check_right_pred)
-        self.right_pred += sum(check_right_pred & (target == preds))
+        self.check_right_pred += torch.sum(check_right_pred)
+        self.right_pred += torch.sum(check_right_pred & (target == preds))
