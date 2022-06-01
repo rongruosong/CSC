@@ -12,19 +12,21 @@ output_model_path=$CURRENT_DIR/finetune_checkpoint
 
 confusions=$CURRENT_DIR/confusions
 
-train_batch_size=32
+train_batch_size=16
 test_batch_size=32
 
-seq_length=128
+seq_length=256
+
+learning_rate=5e-5
 
 accelerator="GPU"
 num_devices=1
 num_nodes=1
 strategy="ddp"
 
-num_epochs=3
+num_epochs=20
 
-val_check_interval=10
+val_check_interval=100
 
 report_steps=50
 
@@ -42,6 +44,7 @@ python3 run_finetuning.py \
     --train_batch_size $train_batch_size \
     --test_batch_size $test_batch_size \
     --seq_length $seq_length \
+    --learning_rate=$learning_rate \
     --num_devices $num_devices \
     --num_nodes $num_nodes \
     --strategy $strategy \

@@ -63,7 +63,9 @@ def parse_args() -> argparse.Namespace:
                         help='the number of devices of one node for training')
     parser.add_argument('--num_nodes', type=int, default=1,
                         help='the number of node for training')
-    parser.add_argument('--strategy', type=str, choices=["dp", "ddp", "ddp_spawn", "deepspeed", "ddp_sharded"], default='ddp',
+    parser.add_argument('--strategy', type=str, 
+                        choices=["dp", "ddp", "ddp_spawn", "deepspeed", 'deepspeed_stage_1', 'deepspeed_stage_2', 'deepspeed_stage_3', "ddp_sharded"], 
+                        default='ddp',
                         help='Strategy for how to run across multiple devices')
     parser.add_argument("--fp16", action='store_true',
                         help="Whether to use 16-bit (mixed) precision (through NVIDIA apex) instead of 32-bit.")
