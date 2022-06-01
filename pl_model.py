@@ -444,11 +444,20 @@ class CSCTaskDataModule(LightningDataModule):
                 self.tokenizer, self.args.test_data_path, self.args.ignore_index, mode='test')
         
     def train_dataloader(self):
-        return DataLoader(self.train_data, batch_size=self.args.train_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.train_data, 
+            batch_size=self.args.train_batch_size,
+            num_workers=24,
+            collate_fn=collate_csc_fn_padding)
     
     def val_dataloader(self):
-        return DataLoader(self.val_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.val_data, 
+            batch_size=self.args.test_batch_size, 
+            num_workers=24,
+            collate_fn=collate_csc_fn_padding)
     
     def test_dataloader(self):
-        return DataLoader(self.test_data, batch_size=self.args.test_batch_size, collate_fn=collate_csc_fn_padding)
+        return DataLoader(self.test_data, 
+            batch_size=self.args.test_batch_size, 
+            num_workers=24,
+            collate_fn=collate_csc_fn_padding)
 

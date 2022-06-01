@@ -1,8 +1,10 @@
 #!/bin/sh
 CURRENT_DIR=`pwd`
 
-train_data_path=$CURRENT_DIR/data/sighan_2015/train.tsv
-test_data_path=$CURRENT_DIR/data/sighan_2015/test.tsv
+# train_data_path=$CURRENT_DIR/data/sighan_2015/train.tsv
+# test_data_path=$CURRENT_DIR/data/sighan_2015/test.tsv
+train_data_path=$CURRENT_DIR/data/sighan_plome/train.txt
+test_data_path=$CURRENT_DIR/data/sighan_plome/sighan15_test.txt
 
 config_path=$CURRENT_DIR/cbert/bert_config.json
 vocab_path=$CURRENT_DIR/cbert/vocab.txt
@@ -12,10 +14,10 @@ output_model_path=$CURRENT_DIR/finetune_checkpoint
 
 confusions=$CURRENT_DIR/confusions
 
-train_batch_size=16
+train_batch_size=32
 test_batch_size=32
 
-seq_length=256
+seq_length=180
 
 learning_rate=5e-5
 
@@ -24,11 +26,11 @@ num_devices=1
 num_nodes=1
 strategy="ddp"
 
-num_epochs=20
+num_epochs=10
 
-val_check_interval=100
+val_check_interval=500
 
-report_steps=50
+report_steps=200
 
 ignore_index=-100
 seed=42

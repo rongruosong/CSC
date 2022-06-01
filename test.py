@@ -20,7 +20,7 @@ if __name__ == '__main__':
     print('jinyin conf size:', len(jinyin.confusion))
     stroke = StrokeConfusionSet(tokenizer, stroke_file)
 
-    conf = Dict({'tokenizer': tokenizer, 'seq_length': 36})
+    conf = Dict({'tokenizer': tokenizer, 'seq_length': 180})
 
     mask = Mask(pinyin, jinyin, stroke)
 
@@ -30,8 +30,9 @@ if __name__ == '__main__':
 
     # print([(i, c) for i, c in enumerate(tokenizer.convert_ids_to_tokens(src))])
     # print([(i, c) for i, c in enumerate(tokenizer.convert_ids_to_tokens(tgt))])
-    dataset = CscTaskDataset(seq_length=46, tokenizer=tokenizer, file_path=Path('./data/sighan_2015/train.tsv'))
+    dataset = CscTaskDataset(seq_length=180, tokenizer=tokenizer, file_path=Path('./data/sighan_plome/sighan15_test.txt'))
     # collate_csc_task_fn_padding = partial(collate_csc_task_fn_padding, mode='train')
     loader = DataLoader(dataset, batch_size=1, num_workers=1, persistent_workers=True, collate_fn=collate_csc_fn_padding)
     for i, batch in enumerate(loader):
-        print(i)
+        if i % 1000 == 0:
+            print(i)
