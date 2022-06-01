@@ -32,7 +32,6 @@ if __name__ == '__main__':
     # print([(i, c) for i, c in enumerate(tokenizer.convert_ids_to_tokens(tgt))])
     dataset = CscTaskDataset(seq_length=46, tokenizer=tokenizer, file_path=Path('./data/sighan_2015/train.tsv'))
     # collate_csc_task_fn_padding = partial(collate_csc_task_fn_padding, mode='train')
-    loader = DataLoader(dataset, batch_size=2, num_workers=1, persistent_workers=True, collate_fn=collate_csc_fn_padding)
-    for batch in loader:
-        print(batch)
-        break
+    loader = DataLoader(dataset, batch_size=1, num_workers=1, persistent_workers=True, collate_fn=collate_csc_fn_padding)
+    for i, batch in enumerate(loader):
+        print(i)

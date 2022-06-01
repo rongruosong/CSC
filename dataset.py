@@ -84,6 +84,8 @@ class CscTaskDataset(CscDatset):
         src_tokens = self.tokenizer.tokenize(lines[0])
         if self.mode != 'infer':
             tgt_tokens = self.tokenizer.tokenize(lines[1])
+            if len(tgt_tokens) != len(src_tokens):
+                print(lines)
             assert len(tgt_tokens) == len(src_tokens), 'the length of src line is not equal to tgt line\'s'
 
         src_tokens = [self.tokenizer.cls_token] + src_tokens
