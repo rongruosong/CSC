@@ -1,5 +1,6 @@
 #!/bin/sh
 CURRENT_DIR=`pwd`
+init_bert="cbert"
 
 # train_data_path=$CURRENT_DIR/data/sighan_2015/train.tsv
 # test_data_path=$CURRENT_DIR/data/sighan_2015/test.tsv
@@ -36,6 +37,7 @@ ignore_index=-100
 seed=42
 
 python3 run_finetuning.py \
+    --init_bert $init_bert \
     --train_data_path $train_data_path \
     --test_data_path $test_data_path \
     --config_path $config_path \

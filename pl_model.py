@@ -15,7 +15,7 @@ from log import Logger
 from tokenization import BertTokenizer
 from dataset import CscMlmDataset, CscTaskDataset,collate_csc_fn_padding
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
-from model import BertForCSC
+from model import BertForCSC, BertForMaskedLM
 from load_cbert_weight import load_tf_cbert
 from torchmetrics import MeanMetric, Accuracy
 from metrics import CSCScore
@@ -27,7 +27,11 @@ class CSCTransformer(LightningModule, metaclass=ABCMeta):
         
         # 构建模型
         config = BertConfig.from_pretrained(self.args.config_path)
-        self.model = BertForCSC(config, num_labels, self.args.ignore_index)
+
+        if self.args.init_bert == 'cbert':
+            self.model = BertForCSC(config, num_labels, self.args.ignore_index)
+        else:
+            self.model = BertForMaskedLM(config, self.args.ignore_index)
 
         # 模型加载参数
         if self.args.from_tf:

@@ -4,6 +4,9 @@ import argparse
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Chinese Spell Correct')
 
+    parser.add_argument("--init_bert", type=str, choices=["cbert", "bert"], default="cbert",
+                        help='the weights of model init type')
+
     # dataset path options
     parser.add_argument("--train_data_path", type=str,
                         help='path of the train dataset')
