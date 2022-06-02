@@ -97,3 +97,78 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         output = (prediction_scores,) + outputs[2:]
         return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+
+
+class MacbertForCSC(BertPreTrainedModel):
+    _keys_to_ignore_on_load_unexpected = [r"pooler"]
+    _keys_to_ignore_on_load_missing = [r"position_ids", r"predictions.decoder.bias"]
+
+    def __init__(self, config, ignore_index):
+        super().__init__(config)
+        self.ignore_index = ignore_index
+
+
+        self.bert = BertModel(config, add_pooling_layer=False)
+        self.cls = BertOnlyMLMHead(config)
+
+        self.detection = nn.Linear(self.bert.config.hidden_size, 1)
+        self.sigmoid = nn.Sigmoid()
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def forward(
+        self,
+        input_ids: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        token_type_ids: Optional[torch.Tensor] = None,
+        position_ids: Optional[torch.Tensor] = None,
+        head_mask: Optional[torch.Tensor] = None,
+        inputs_embeds: Optional[torch.Tensor] = None,
+        encoder_hidden_states: Optional[torch.Tensor] = None,
+        encoder_attention_mask: Optional[torch.Tensor] = None,
+        labels: Optional[torch.Tensor] = None,
+        det_labels: Optional[torch.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+    ) -> Tuple[torch.Tensor]:
+        r"""
+        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
+            config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
+            loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
+        """
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=None,
+        )
+
+        sequence_output = outputs[0]
+        prediction_scores = self.cls(sequence_output)
+
+        masked_lm_loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss(ignore_index=self.ignore_index)  # -100 index = padding token
+            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+        
+        det_prob = self.detection(sequence_output)
+        if det_labels is not None:
+            det_loss_fct = FocalLoss(num_labels=None, activation_type='sigmoid')
+            # pad部分不计算损失
+            active_loss = attention_mask.view(-1, det_prob.shape[1]) == 1
+            active_probs = det_prob.view(-1, det_prob.shape[1])[active_loss]
+            active_labels = det_labels[active_loss]
+            det_loss = det_loss_fct(active_probs, active_labels.float())
+
+
+        output = (prediction_scores,) + outputs[2:]
+        return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
