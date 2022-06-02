@@ -48,7 +48,7 @@ python3 run_finetuning.py \
     --train_batch_size $train_batch_size \
     --test_batch_size $test_batch_size \
     --seq_length $seq_length \
-    --learning_rate=$learning_rate \
+    --learning_rate $learning_rate \
     --num_devices $num_devices \
     --num_nodes $num_nodes \
     --strategy $strategy \

@@ -26,7 +26,7 @@ def train_model():
         monitor='val_loss',
         every_n_train_steps=args.val_check_interval,
         filename='{epoch}-{global_step}-{step}-{val_loss:.4f}-{val_det_f1:.4f}-{val_cor_f1:.4f}',
-        save_top_k=20,
+        save_top_k=10,
         mode='min'
     )
     trainer = Trainer(
@@ -51,7 +51,7 @@ def train_model():
     trainer.validate(datamodule=csc_dm)
     # 训练完成后做一次参数保存
     trainer.save_checkpoint(
-        filepath=args.output_model_path + 'last_step.ckpt',
+        filepath=args.output_model_path + '/last_step.ckpt',
         weights_only=True
     )
 
