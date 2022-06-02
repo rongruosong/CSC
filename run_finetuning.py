@@ -1,6 +1,9 @@
 # coding=utf-8
+import torch
+
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks.progress import TQDMProgressBar
 
 from pl_model import CSCTaskDataModule, CSCTaskTransformer
 from train_argparse import parse_args
@@ -37,9 +40,10 @@ def train_model():
         accumulate_grad_batches=args.grad_accumulation_steps,
         val_check_interval=args.val_check_interval,
         check_val_every_n_epoch=1,
-        callbacks=[LearningRateMonitor("step"), modelCheckpoint],
-        deterministic=False,
-        profiler="simple"
+        callbacks=[LearningRateMonitor("step"), 
+            TQDMProgressBar(refresh_rate=20, process_position=1), 
+            modelCheckpoint],
+        deterministic=False
     )
     trainer.fit(model, csc_dm)
 
