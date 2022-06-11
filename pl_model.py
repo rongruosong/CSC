@@ -16,6 +16,7 @@ from tokenization import BertTokenizer
 from dataset import CscMlmDataset, CscTaskDataset,collate_csc_fn_padding
 from mask import PinyinConfusionSet, StrokeConfusionSet, Mask
 from model import BertForCSC, BertForMaskedLM
+from ernie import ErnieForMaskedLM
 from load_cbert_weight import load_tf_cbert
 from torchmetrics import MeanMetric, Accuracy
 from metrics import CSCScore
@@ -30,6 +31,9 @@ class CSCTransformer(LightningModule, metaclass=ABCMeta):
 
         if self.args.init_bert == 'cbert':
             self.model = BertForCSC(config, num_labels, self.args.ignore_index)
+        elif self.args.init_bert == 'ernie3':
+            print('create ernie model')
+            self.model = ErnieForMaskedLM(config, self.args.ignore_index)
         else:
             self.model = BertForMaskedLM(config, self.args.ignore_index)
 
