@@ -12,6 +12,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 from torchmetrics import Accuracy, MeanMetric
 from transformers import BertConfig, get_linear_schedule_with_warmup
+from ernie import ErnieForMaskedLM
 
 from dataset import CscMlmDataset, CscTaskDataset, collate_csc_fn_padding
 from load_cbert_weight import load_tf_cbert
@@ -38,6 +39,9 @@ class CSCTransformer(LightningModule, metaclass=ABCMeta):
                 self.args.alpha,
                 self.args.ignore_index
             )
+        elif self.args.init_bert == 'ernie3':
+            print('create ernie model')
+            self.model = ErnieForMaskedLM(config, self.args.ignore_index)
         else:
             self.model = BertForMaskedLM(config, self.args.ignore_index)
 
