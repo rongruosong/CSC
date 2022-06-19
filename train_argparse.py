@@ -89,6 +89,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--ignore_index', type=int, default=-100,
                         help='metric ignore index')
     
+    # just for macbert csc
+    parser.add_argument('--gamma', type=float, default=2.0,
+                        help='focal loss gamma')
+    parser.add_argument('--alpha', type=float, default=0.25,
+                        help='focal loss alpha')
+    parser.add_argument('--w', type=float, default=0.3,
+                        help='hparam for detection and correct loss')
+
     # evn options
     parser.add_argument("--seed", type=int, default=7,
                         help="Random seed.")

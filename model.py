@@ -1,10 +1,15 @@
 # coding=utf-8
+"""
+copy from fvcore
+"""
 from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 from transformers import BertConfig, BertModel, BertPreTrainedModel
 from transformers.models.bert.modeling_bert import BertOnlyMLMHead
+
+from loss import sigmoid_focal_loss_jit
 
 
 class BertForCSC(BertPreTrainedModel):
@@ -103,9 +108,11 @@ class MacbertForCSC(BertPreTrainedModel):
     _keys_to_ignore_on_load_unexpected = [r"pooler"]
     _keys_to_ignore_on_load_missing = [r"position_ids", r"predictions.decoder.bias"]
 
-    def __init__(self, config, ignore_index):
+    def __init__(self, config, gamma, alpha, ignore_index):
         super().__init__(config)
         self.ignore_index = ignore_index
+        self.gamma = gamma
+        self.alpha = alpha
 
 
         self.bert = BertModel(config, add_pooling_layer=False)
@@ -154,21 +161,20 @@ class MacbertForCSC(BertPreTrainedModel):
 
         sequence_output = outputs[0]
         prediction_scores = self.cls(sequence_output)
+        det_prob = self.detection(sequence_output)
 
-        masked_lm_loss = None
+        cor_loss = None
+        det_loss = None
+
         if labels is not None:
             loss_fct = nn.CrossEntropyLoss(ignore_index=self.ignore_index)  # -100 index = padding token
-            masked_lm_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
+            cor_loss = loss_fct(prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
         
-        det_prob = self.detection(sequence_output)
-        if det_labels is not None:
-            det_loss_fct = FocalLoss(num_labels=None, activation_type='sigmoid')
-            # pad部分不计算损失
+            # 计算detection的loss
             active_loss = attention_mask.view(-1, det_prob.shape[1]) == 1
             active_probs = det_prob.view(-1, det_prob.shape[1])[active_loss]
             active_labels = det_labels[active_loss]
-            det_loss = det_loss_fct(active_probs, active_labels.float())
-
+            det_loss = sigmoid_focal_loss_jit(active_probs, active_labels, self.gamma, self.alpha, 'mean')
 
         output = (prediction_scores,) + outputs[2:]
-        return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+        return ((cor_loss, det_loss) + output) if cor_loss is not None else output
